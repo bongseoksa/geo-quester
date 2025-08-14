@@ -1,16 +1,59 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft, Clock, Lightbulb } from "lucide-react"
+import dynamic from "next/dynamic"
 
 interface GameScreenProps {
   onBack: () => void
   onComplete: () => void
 }
 
+// SSR에서 window 참조 방지
+const MapContainer = dynamic(
+  () => import('react-leaflet').then(mod => mod.MapContainer),
+  { ssr: false }
+);
+const TileLayer = dynamic(
+  () => import('react-leaflet').then(mod => mod.TileLayer),
+  { ssr: false }
+);
+const GeoJSON = dynamic(
+  () => import('react-leaflet').then(mod => mod.GeoJSON),
+  { ssr: false }
+);
+
 export function GameScreen({ onBack, onComplete }: GameScreenProps) {
   const [progress, setProgress] = useState(45)
+  const [geoData, setGeoData] = useState(null);
+
+  useEffect(() => {
+    fetch('/data/countries.geojson') // public/data 폴더에 저장
+      .then(res => res.json())
+      .then(data => setGeoData(data));
+  }, []);
+
+  const style = {
+    fillColor: '#74c476',
+    weight: 1,
+    opacity: 1,
+    color: 'white',
+    dashArray: '1',
+    fillOpacity: 0.7
+  };
+
+  const onEachFeature = (feature, layer) => {
+    layer.bindPopup(feature.properties.ADMIN); // 국가 이름
+    layer.on({
+      mouseover: (e) => {
+        e.target.setStyle({ fillColor: '#31a354' });
+      },
+      mouseout: (e) => {
+        e.target.setStyle({ fillColor: '#74c476' });
+      }
+    });
+  };
 
   return (
     <div className="flex flex-col min-h-screen min-h-[100dvh] p-3 sm:p-4 safe-area-inset">
@@ -38,8 +81,15 @@ export function GameScreen({ onBack, onComplete }: GameScreenProps) {
       </div>
 
       {/* Puzzle Area */}
-      <div className="flex-1 flex items-center justify-center px-2">
-        <div className="w-full max-w-xs aspect-square bg-gray-700 rounded-lg grid grid-cols-3 gap-1 p-2">
+      <div className="flex-1 flex items-center justify-center px-2 h-full">
+        <MapContainer center={[20, 0]} zoom={2} className="w-full h-full">
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          />
+          {geoData && <GeoJSON data={geoData} style={() => style} onEachFeature={onEachFeature} />}
+        </MapContainer>
+        {/* <div className="w-full max-w-xs aspect-square bg-gray-700 rounded-lg grid grid-cols-3 gap-1 p-2">
           {Array.from({ length: 9 }, (_, i) => (
             <div
               key={i}
@@ -48,7 +98,7 @@ export function GameScreen({ onBack, onComplete }: GameScreenProps) {
               <span className="text-xs sm:text-sm text-gray-300">{i + 1}</span>
             </div>
           ))}
-        </div>
+        </div> */}
       </div>
 
       {/* Progress Bar */}
