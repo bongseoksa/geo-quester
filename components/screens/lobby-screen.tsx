@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button"
 import { Settings, Zap } from "lucide-react"
+import * as d3 from "d3";
 
 interface LobbyScreenProps {
   energy: number

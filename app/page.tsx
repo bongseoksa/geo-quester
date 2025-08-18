@@ -7,6 +7,7 @@ import { LobbyScreen } from "@/components/screens/lobby-screen"
 import { GameScreen } from "@/components/screens/game-screen"
 import { ResultScreen } from "@/components/screens/result-screen"
 import { SettingsScreen } from "@/components/screens/settings-screen"
+import Map from "../components/screens/map"
 
 type Screen = "loading" | "login" | "lobby" | "game" | "result" | "settings"
 
@@ -20,29 +21,30 @@ export default function GeoQuesterApp() {
   }
 
   const renderScreen = () => {
-    switch (currentScreen) {
-      case "loading":
-        return <LoadingScreen onGuestLogin={() => navigateTo("login")} />
-      case "login":
-        return <LoginScreen onLogin={() => navigateTo("lobby")} />
-      case "lobby":
-        return (
-          <LobbyScreen
-            energy={energy}
-            maxEnergy={maxEnergy}
-            onPlay={() => navigateTo("game")}
-            onSettings={() => navigateTo("settings")}
-          />
-        )
-      case "game":
-        return <GameScreen onBack={() => navigateTo("lobby")} onComplete={() => navigateTo("result")} />
-      case "result":
-        return <ResultScreen onRetry={() => navigateTo("game")} onBackToLobby={() => navigateTo("lobby")} />
-      case "settings":
-        return <SettingsScreen onBack={() => navigateTo("lobby")} />
-      default:
-        return <LoadingScreen onGuestLogin={() => navigateTo("login")} />
-    }
+    // switch (currentScreen) {
+    //   case "loading":
+    //     return <LoadingScreen onGuestLogin={() => navigateTo("login")} />
+    //   case "login":
+    //     return <LoginScreen onLogin={() => navigateTo("lobby")} />
+    //   case "lobby":
+    //     return (
+    //       <LobbyScreen
+    //         energy={energy}
+    //         maxEnergy={maxEnergy}
+    //         onPlay={() => navigateTo("game")}
+    //         onSettings={() => navigateTo("settings")}
+    //       />
+    //     )
+    //   case "game":
+    //     return <GameScreen onBack={() => navigateTo("lobby")} onComplete={() => navigateTo("result")} />
+    //   case "result":
+    //     return <ResultScreen onRetry={() => navigateTo("game")} onBackToLobby={() => navigateTo("lobby")} />
+    //   case "settings":
+    //     return <SettingsScreen onBack={() => navigateTo("lobby")} />
+    //   default:
+    //     return <LoadingScreen onGuestLogin={() => navigateTo("login")} />
+    // }
+    return <Map />
   }
 
   return (
