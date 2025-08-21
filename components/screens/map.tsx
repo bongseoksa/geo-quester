@@ -43,7 +43,7 @@ const Map = () => {
       .style("pointer-events", "none")
       .style("opacity", 0);
 
-    d3.json<GeoJSONData>("/data/gadm41_KOR_3.geojson").then((geojson) => {
+    d3.json<GeoJSONData>("/data/gadm41_KOR_1.geojson").then((geojson) => {
       if (!geojson) return;
 
       setFeatures(geojson.features);
@@ -100,9 +100,9 @@ const Map = () => {
   }, []);
 
   return (
-    <div style={{ display: "flex" }}>
+    <div className="flex">
       {/* 지도 영역 */}
-      <div style={{ position: "relative" }}>
+      <div className="relative">
         <svg ref={svgRef}></svg>
         <div ref={tooltipRef}></div>
       </div>
