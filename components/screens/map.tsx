@@ -43,7 +43,7 @@ const Map = () => {
       .style("pointer-events", "none")
       .style("opacity", 0);
 
-    d3.json<GeoJSONData>("/data/gadm41_KOR_1.geojson").then((geojson) => {
+    d3.json<GeoJSONData>("/data/geojson/gadm41_KOR_1.geojson").then((geojson) => {
       if (!geojson) return;
 
       setFeatures(geojson.features);
