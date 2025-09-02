@@ -5,7 +5,9 @@
   "scripts": {
     "build": "next build",
     "dev": "next dev",
-    "lint": "next lint",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "fix": "eslint . --fix",
     "start": "next start"
   },
   "dependencies": {
@@ -74,15 +76,26 @@
     "zod": "3.25.67"
   },
   "devDependencies": {
+    "@eslint/js": "^9.34.0",
     "@tailwindcss/postcss": "^4.1.9",
     "@types/d3": "^7.4.3",
     "@types/d3-geo": "^3.1.0",
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@typescript-eslint/eslint-plugin": "^8.41.0",
+    "@typescript-eslint/parser": "^8.41.0",
+    "eslint": "^9.34.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.20",
     "postcss": "^8.5",
+    "prettier": "^3.6.2",
     "tailwindcss": "^4.1.9",
     "tw-animate-css": "1.3.3",
-    "typescript": "^5"
+    "typescript": "^5",
+    "typescript-eslint": "^8.41.0"
   }
 }
