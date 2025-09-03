@@ -104,19 +104,20 @@ const Map = () => {
   return (
     <div className="flex">
       {/* 지도 영역 */}
-      <div className="relative">
+      <div className="map-wrapper relative">
         <svg ref={svgRef}></svg>
         <div ref={tooltipRef}></div>
       </div>
 
       {/* 퍼즐조각 리스트 */}
       <div
+        className="puzzle-items-wrapper"
         style={{
           width: '250px',
           padding: '10px',
           borderLeft: '1px solid #ccc',
           maxHeight: '90vh',
-          overflowY: 'auto'
+          overflowY: 'auto',
         }}
       >
         <h3 style={{ marginBottom: '8px' }}>퍼즐조각</h3>
@@ -129,7 +130,7 @@ const Map = () => {
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              cursor: 'pointer'
+              cursor: 'pointer',
             }}
           >
             {/* 원본 좌표 기반 미니 지도 */}
@@ -147,7 +148,7 @@ const Map = () => {
               style={{
                 fontSize: '14px',
                 marginTop: '4px',
-                fontWeight: selected === f.properties.NAME_1 ? 'bold' : 'normal'
+                fontWeight: selected === f.properties.NAME_1 ? 'bold' : 'normal',
               }}
             >
               {f.properties.NAME_1}
