@@ -12,7 +12,14 @@ interface Props {
 export const MapWrapper: React.FC<Props> = ({ className }) => {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const tooltipRef = useRef<HTMLDivElement | null>(null);
-  const { features, selectedName, setSelectedName } = useGeoStore();
+  const {
+    features,
+    selectedName,
+    setSelectedName,
+    isInteractionEnabled,
+    matchedNames,
+    setHoveredName,
+  } = useGeoStore();
   const pathGenerator = useGeoPath(features, 800, 600);
 
   const { setNodeRef } = useDroppable({ id: 'map-drop-zone' });
@@ -34,15 +41,18 @@ export const MapWrapper: React.FC<Props> = ({ className }) => {
 
     if (!features || features.length === 0 || !pathGenerator) return;
 
-    svg
+    const svgSelection = svg
       .selectAll<SVGPathElement, GeoJSONFeature>('path')
       .data(features)
       .join('path')
       .attr('d', pathGenerator as any)
-      .attr('fill', '#D6EAF8')
+      .attr('data-name', (d) => d.properties?.NAME_1 || '')
+      .attr('fill', (d) => (matchedNames.has(d.properties?.NAME_1 || '') ? '#86EFAC' : '#D6EAF8'))
       .attr('stroke', '#2980B9')
       .attr('stroke-width', 1)
       .on('mouseover', function (event, d) {
+        if (!isInteractionEnabled) return;
+        setHoveredName(d.properties?.NAME_1 || null);
         const element = d3.select(this);
         const [cx, cy] = (pathGenerator as any).centroid(d);
         element
@@ -58,9 +68,12 @@ export const MapWrapper: React.FC<Props> = ({ className }) => {
           .style('top', `${event.pageY + 10}px`);
       })
       .on('mousemove', (event) => {
+        if (!isInteractionEnabled) return;
         tooltip.style('left', `${event.pageX + 10}px`).style('top', `${event.pageY + 10}px`);
       })
       .on('mouseout', function (event, d) {
+        if (!isInteractionEnabled) return;
+        setHoveredName(null);
         const element = d3.select(this);
         const [cx, cy] = (pathGenerator as any).centroid(d);
         element
@@ -71,9 +84,16 @@ export const MapWrapper: React.FC<Props> = ({ className }) => {
         tooltip.style('opacity', 0);
       })
       .on('click', (_, d) => {
+        if (!isInteractionEnabled) return;
         setSelectedName(d.properties.NAME_1);
       });
-  }, [features, pathGenerator, setSelectedName]);
+
+    // 매칭된 피처는 하이라이트 상태로 업데이트(재실행 시에도 반영)
+    svgSelection
+      .transition()
+      .duration(200)
+      .attr('fill', (d) => (matchedNames.has(d.properties?.NAME_1 || '') ? '#86EFAC' : '#D6EAF8'));
+  }, [features, pathGenerator, setSelectedName, isInteractionEnabled, matchedNames]);
 
   return (
     <div className={className} ref={setNodeRef}>
