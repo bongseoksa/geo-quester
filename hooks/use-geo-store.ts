@@ -28,6 +28,13 @@ interface GeoState {
   markMatched: (name: string) => void;
   hoveredName: string | null;
   setHoveredName: (name: string | null) => void;
+  // 드래그앤드롭 아이템 위치 관리
+  itemPositions: Record<string, { x: number; y: number }>;
+  setItemPosition: (id: string, position: { x: number; y: number }) => void;
+  clearItemPosition: (id: string) => void;
+  // 지역별 스냅 좌표 (centroid 기반)
+  regionSnapPoints: Record<string, { x: number; y: number }>;
+  setRegionSnapPoints: (points: Record<string, { x: number; y: number }>) => void;
 }
 
 export const useGeoStore = create<GeoState>((set) => ({
@@ -46,4 +53,16 @@ export const useGeoStore = create<GeoState>((set) => ({
     }),
   hoveredName: null,
   setHoveredName: (name) => set({ hoveredName: name }),
+  itemPositions: {},
+  setItemPosition: (id, position) =>
+    set((state) => ({
+      itemPositions: { ...state.itemPositions, [id]: position },
+    })),
+  clearItemPosition: (id) =>
+    set((state) => {
+      const { [id]: _, ...rest } = state.itemPositions;
+      return { itemPositions: rest };
+    }),
+  regionSnapPoints: {},
+  setRegionSnapPoints: (points) => set({ regionSnapPoints: points }),
 }));
