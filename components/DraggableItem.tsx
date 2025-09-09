@@ -41,7 +41,7 @@ export const DraggableItem: React.FC<DraggableItemProps> = ({
       : position
         ? `translate3d(${position.x}px, ${position.y}px, 0)`
         : undefined,
-    opacity: isMatched ? 0.3 : isDragging ? 0.5 : 1, // 매칭된 아이템은 30% 투명도
+    opacity: isDragging ? 0.5 : 1, // 매칭된 아이템도 완전히 보이도록 투명도 1 유지
     cursor: isMatched ? 'default' : 'grab',
     transition: isDragging ? 'none' : 'transform 0.2s ease-out',
   };
@@ -78,14 +78,15 @@ export const DraggableItem: React.FC<DraggableItemProps> = ({
           style={{
             cursor: isMatched ? 'default' : 'grab',
             pointerEvents: isMatched ? 'none' : 'auto', // 매칭된 아이템은 클릭 차단
+            filter: isMatched ? 'brightness(1.2) saturate(1.3)' : 'none', // 매칭된 아이템은 밝게 표시
           }}
         >
           {pathGenerator && feature && (
             <path
               d={pathGenerator(feature.geometry) || ''}
-              fill={selected ? '#F53' : '#D6EAF8'}
-              stroke="#2980B9"
-              strokeWidth={1}
+              fill={isMatched ? '#10B981' : selected ? '#F53' : '#D6EAF8'} // 매칭된 아이템은 녹색으로 표시
+              stroke={isMatched ? '#059669' : '#2980B9'}
+              strokeWidth={isMatched ? 2 : 1}
             />
           )}
         </svg>
@@ -96,7 +97,7 @@ export const DraggableItem: React.FC<DraggableItemProps> = ({
         style={{
           fontSize: '14px',
           marginTop: '4px',
-          fontWeight: selected ? 'bold' : 'normal',
+          fontWeight: isMatched ? 'bold' : selected ? 'bold' : 'normal',
           cursor: 'default',
           userSelect: 'none',
           pointerEvents: 'none',
@@ -105,9 +106,11 @@ export const DraggableItem: React.FC<DraggableItemProps> = ({
           left: '50%',
           transform: 'translateX(-50%)',
           whiteSpace: 'nowrap',
+          color: isMatched ? '#059669' : selected ? '#F53' : '#333', // 매칭된 아이템은 녹색 텍스트
         }}
       >
         {feature.properties.NAME_1}
+        {isMatched && ' ✓'} {/* 매칭된 아이템에 체크마크 추가 */}
       </span>
     </div>
   );

@@ -21,6 +21,13 @@ interface MapDnDProps {
   className?: string;
 }
 
+interface CandidateRegion {
+  regionName: string;
+  method: string;
+  area: number;
+  isExactMatch: boolean;
+}
+
 /**
  * 메인 드래그앤드롭 컨테이너 컴포넌트
  * - DndContext로 전체 DnD 이벤트 관리
@@ -44,7 +51,6 @@ export const MapDnD: React.FC<MapDnDProps> = ({ className = 'flex' }) => {
   const [activeFeature, setActiveFeature] = useState<GeoJSONFeature | null>(null);
   const [dragOverRegion, setDragOverRegion] = useState<string | null>(null);
   const [currentMousePos, setCurrentMousePos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
-  // dropZoneFeatures 제거 - 중앙 집중식 features 사용
 
   // 드래그 센서 설정
   const sensors = useSensors(
@@ -83,73 +89,22 @@ export const MapDnD: React.FC<MapDnDProps> = ({ className = 'flex' }) => {
   };
 
   /**
-   * 드래그 종료 시 호출 - 간소화된 로직
-   * 1. 드래그 중인 아이템의 지역명을 기억
-   * 2. 포인터 위치의 feature를 정확히 판별
-   * 3. 드롭존 외부이거나 feature 외부면 상태 초기화
-   * 4. 매칭 성공시 아이템을 투명하게 만들고 클릭 차단
+   * 중첩 지역을 고려한 최적의 feature 탐지 함수
+   * - 포인터 위치에서 모든 가능한 path 요소를 탐지
+   * - 중첩된 경우 가장 작은(구체적인) 지역을 우선 선택
+   * - 드래그 아이템과 매칭 가능성을 고려한 우선순위 적용
    */
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-    const activeId = active.id as string;
-    const overId = over?.id as string;
-
-    console.log('Drag end - activeId:', activeId, 'overId:', overId);
-
-    // 1. 드래그 중인 아이템의 지역명 추출
-    const draggedRegionName = activeId.replace(/^puzzle-/, '');
-    console.log('Dragged region:', draggedRegionName);
-
-    // 2. 드롭이 DropZone 밖에 있으면 상태 초기화
-    if (overId !== 'map-drop-zone') {
-      console.log('Dropped outside drop zone - resetting state');
-      setActiveId(null);
-      setActiveFeature(null);
-      setDragOverRegion(null);
-      return;
-    }
-
-    // 3. geojson 기반 순차 검증 로직
-    console.log('=== GeoJSON 기반 드롭 검증 시작 ===');
-    console.log(`📍 드래그 아이템 지역명: "${draggedRegionName}"`);
-
-    // 3-1. 포인터 위치 확인
-    const dropX = currentMousePos.x;
-    const dropY = currentMousePos.y;
-    console.log(`🎯 마우스 포인터 위치: (${dropX}, ${dropY})`);
-
-    // 유효한 좌표인지 확인
-    if (dropX <= 0 || dropY <= 0) {
-      console.log('❌ 유효하지 않은 포인터 위치 - 드롭 취소');
-      setActiveId(null);
-      setActiveFeature(null);
-      setDragOverRegion(null);
-      return;
-    }
-
-    // 3-2. 안정적인 드롭존 feature 탐지
-    console.log('🔍 드롭존 feature 탐지 중...');
-
-    // 드래그 오버레이가 방해하지 않도록 잠시 숨기고 elementFromPoint 호출
-    const dragOverlay = document.querySelector('[data-dnd-kit-drag-overlay]') as HTMLElement;
-    const originalPointerEvents = dragOverlay?.style.pointerEvents;
-    if (dragOverlay) {
-      dragOverlay.style.pointerEvents = 'none';
-    }
-
-    // 다중 탐지 방식으로 안정성 향상
-    let targetRegionName: string | null = null;
-    let isValidDropZoneFeature = false;
-    let detectionMethod = '';
+  const findBestMatchingFeature = (
+    dropX: number,
+    dropY: number,
+    draggedRegionName: string,
+  ): { regionName: string | null; method: string } => {
+    console.log('🔍 중첩 지역 고려 feature 탐지 시작...');
+    
+    const candidateRegions: CandidateRegion[] = [];
 
     // 방법 1: 직접 elementFromPoint 탐지
     const elementBelow = document.elementFromPoint(dropX, dropY);
-    console.log(
-      `   방법1 - elementBelow:`,
-      elementBelow?.tagName,
-      elementBelow?.getAttribute?.('data-region'),
-    );
-
     if (elementBelow && elementBelow.tagName === 'path') {
       const regionFromPath = elementBelow.getAttribute('data-region');
       if (regionFromPath) {
@@ -157,105 +112,169 @@ export const MapDnD: React.FC<MapDnDProps> = ({ className = 'flex' }) => {
           (f: GeoJSONFeature) => f.properties?.NAME_1 === regionFromPath,
         );
         if (matchingFeature) {
-          targetRegionName = regionFromPath;
-          isValidDropZoneFeature = true;
-          detectionMethod = '직접 path 탐지';
+          candidateRegions.push({
+            regionName: regionFromPath,
+            method: '직접 elementFromPoint 탐지',
+            area: 0, // 가장 높은 우선순위
+            isExactMatch: regionFromPath === draggedRegionName,
+          });
+          console.log(`   후보 추가 (방법1): "${regionFromPath}"`);
         }
       }
     }
 
-    // 방법 2: SVG 컨테이너 내부에서 모든 path 요소 검사 (fallback)
-    if (!isValidDropZoneFeature) {
-      console.log('   방법2 - SVG 내부 path 요소들 검사 중...');
-      const svgElement = document.querySelector('.map-wrapper svg') as SVGElement;
+    // 방법 2: SVG 내부 모든 path 요소 검사 (중첩 지역 탐지)
+    const svgElement = document.querySelector('.map-wrapper svg') as SVGElement;
+    if (svgElement) {
+      const rect = svgElement.getBoundingClientRect();
+      const relativeX = dropX - rect.left;
+      const relativeY = dropY - rect.top;
 
-      if (svgElement) {
-        const rect = svgElement.getBoundingClientRect();
-        const relativeX = dropX - rect.left;
-        const relativeY = dropY - rect.top;
+      console.log(`   SVG 상대 좌표: (${relativeX}, ${relativeY})`);
 
-        console.log(`   SVG 상대 좌표: (${relativeX}, ${relativeY})`);
+      const pathElements = svgElement.querySelectorAll('path[data-region]');
+      console.log(`   검사할 path 요소 수: ${pathElements.length}`);
 
-        // SVG 내부의 모든 path 요소 검사
-        const pathElements = svgElement.querySelectorAll('path[data-region]');
-        console.log(`   검사할 path 요소 수: ${pathElements.length}`);
+      for (const pathElement of pathElements) {
+        const regionFromPath = pathElement.getAttribute('data-region');
+        if (!regionFromPath) continue;
 
-        for (const pathElement of pathElements) {
-          const regionFromPath = pathElement.getAttribute('data-region');
+        // 이미 후보에 있는 지역은 건너뛰기
+        if (candidateRegions.some((c: CandidateRegion) => c.regionName === regionFromPath)) continue;
 
-          if (regionFromPath) {
-            // 안전한 bbox 검사 방식 사용 (브라우저 호환성 보장)
+        const matchingFeature = features.find(
+          (f: GeoJSONFeature) => f.properties?.NAME_1 === regionFromPath,
+        );
+        if (!matchingFeature) continue;
+
+        try {
+          const bbox = (pathElement as SVGPathElement).getBBox();
+          
+          // bbox 검사
+          if (
+            relativeX >= bbox.x &&
+            relativeX <= bbox.x + bbox.width &&
+            relativeY >= bbox.y &&
+            relativeY <= bbox.y + bbox.height
+          ) {
+            let detectionMethod = 'SVG bbox 검사';
+            let isMoreAccurate = false;
+
+            // point-in-fill 검사 (더 정확한 탐지)
             try {
-              const bbox = (pathElement as SVGPathElement).getBBox();
+              const svgSvgElement = svgElement as SVGSVGElement;
+              if (svgSvgElement.createSVGPoint) {
+                const point = svgSvgElement.createSVGPoint();
+                point.x = relativeX;
+                point.y = relativeY;
 
-              // bbox 검사로 포인트가 path 영역 내부에 있는지 확인
-              if (
-                relativeX >= bbox.x &&
-                relativeX <= bbox.x + bbox.width &&
-                relativeY >= bbox.y &&
-                relativeY <= bbox.y + bbox.height
-              ) {
-                console.log(`   bbox 검사 통과한 지역: "${regionFromPath}"`);
-
-                // 추가 검증: geojson features에서 해당 지역 확인
-                const matchingFeature = features.find(
-                  (f: GeoJSONFeature) => f.properties?.NAME_1 === regionFromPath,
-                );
-
-                if (matchingFeature) {
-                  // 더 정확한 검사를 위해 SVG point-in-fill 시도 (선택적)
-                  let isMoreAccurate = false;
-                  try {
-                    if ('createSVGPoint' in svgElement && 'isPointInFill' in pathElement) {
-                      const svgSvgElement = svgElement as SVGSVGElement;
-                      const point = svgSvgElement.createSVGPoint();
-                      point.x = relativeX;
-                      point.y = relativeY;
-
-                      const isInside = (pathElement as SVGPathElement).isPointInFill(point);
-                      if (isInside) {
-                        isMoreAccurate = true;
-                        console.log(`   point-in-fill 검사도 통과: "${regionFromPath}"`);
-                      }
-                    }
-                  } catch (pointError) {
-                    // point-in-fill 실패해도 bbox 검사 결과 사용
-                    console.log(`   point-in-fill 검사 실패, bbox 결과 사용: "${regionFromPath}"`);
-                  }
-
-                  targetRegionName = regionFromPath;
-                  isValidDropZoneFeature = true;
-                  detectionMethod = isMoreAccurate ? 'SVG point-in-fill 검사' : 'SVG bbox 검사';
-                  break;
+                const isInside = (pathElement as SVGPathElement).isPointInFill(point);
+                if (isInside) {
+                  isMoreAccurate = true;
+                  detectionMethod = 'SVG point-in-fill 검사';
                 }
               }
-            } catch (bboxError) {
-              console.log(`   bbox 검사 실패: ${regionFromPath}`, bboxError);
-              // bbox 검사도 실패하면 해당 path는 건너뛰기
-              continue;
+            } catch (error) {
+              // point-in-fill 실패해도 bbox 결과 사용
+            }
+
+            // bbox 검사 통과했거나 point-in-fill 성공한 경우만 후보 추가
+            if (isMoreAccurate || detectionMethod === 'SVG bbox 검사') {
+              candidateRegions.push({
+                regionName: regionFromPath,
+                method: detectionMethod,
+                area: bbox.width * bbox.height, // 면적으로 우선순위 결정
+                isExactMatch: regionFromPath === draggedRegionName,
+              });
+              console.log(`   후보 추가 (방법2): "${regionFromPath}" - ${detectionMethod}`);
             }
           }
+        } catch (error) {
+          console.log(`   bbox 검사 실패: "${regionFromPath}", 건너뜀`);
         }
       }
     }
 
-    // 드래그 오버레이 복원
-    if (dragOverlay && originalPointerEvents !== undefined) {
-      dragOverlay.style.pointerEvents = originalPointerEvents;
+    console.log(`   총 후보 지역 수: ${candidateRegions.length}`);
+    candidateRegions.forEach((c: CandidateRegion) => {
+      console.log(`     - "${c.regionName}" (${c.method}, 면적: ${c.area}, 정확매칭: ${c.isExactMatch})`);
+    });
+
+    if (candidateRegions.length === 0) {
+      return { regionName: null, method: '탐지 실패' };
     }
 
-    // 3-3. 탐지 결과 로깅
-    if (isValidDropZoneFeature && targetRegionName) {
-      console.log(`✅ 드롭존 feature 탐지 성공: "${targetRegionName}" (${detectionMethod})`);
-    } else {
-      console.log('❌ 드롭존 feature 탐지 실패');
-      console.log(`   - elementBelow: ${elementBelow?.tagName || 'null'}`);
-      console.log(`   - data-region: ${elementBelow?.getAttribute?.('data-region') || 'none'}`);
-      console.log(`   - SVG 검사 결과: ${isValidDropZoneFeature ? '성공' : '실패'}`);
+    // 우선순위 기반 최적 후보 선택
+    // 1순위: 드래그 아이템과 정확히 일치하는 지역
+    const exactMatch = candidateRegions.find((c: CandidateRegion) => c.isExactMatch);
+    if (exactMatch) {
+      console.log(`   🎯 정확 매칭 선택: "${exactMatch.regionName}"`);
+      return { regionName: exactMatch.regionName, method: exactMatch.method + ' (정확매칭)' };
     }
 
-    // 3-4. 드롭존 외부 처리
-    if (!isValidDropZoneFeature || !targetRegionName) {
+    // 2순위: 가장 작은 면적의 지역 (더 구체적인 지역)
+    const sortedByArea = candidateRegions.sort((a: CandidateRegion, b: CandidateRegion) => {
+      // area가 0인 경우(직접 탐지)가 최우선
+      if (a.area === 0 && b.area !== 0) return -1;
+      if (a.area !== 0 && b.area === 0) return 1;
+      return a.area - b.area;
+    });
+
+    const bestCandidate = sortedByArea[0];
+    console.log(`   🏆 최적 후보 선택: "${bestCandidate.regionName}" (면적: ${bestCandidate.area})`);
+    
+    return { regionName: bestCandidate.regionName, method: bestCandidate.method + ' (면적기준)' };
+  };
+
+  /**
+   * 드롭 처리 함수
+   * - 중첩 지역 처리를 위한 개선된 탐지 로직 적용
+   * - 드롭 성공 후 UI 상태 안정성 보장
+   */
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    console.log('=== 드래그 종료 이벤트 시작 ===');
+    console.log('Active:', active?.id);
+    console.log('Over:', over?.id);
+
+    if (!active || over?.id !== 'map-drop-zone') {
+      console.log('🚫 드롭 실패: 드롭존 외부');
+      setActiveId(null);
+      setActiveFeature(null);
+      setDragOverRegion(null);
+      return;
+    }
+
+    // 1. 드래그된 아이템의 지역명 추출
+    const activeItemId = active.id as string;
+    const draggedRegionName = activeItemId.replace('puzzle-', '');
+    console.log(`🎯 드래그된 아이템: "${draggedRegionName}"`);
+
+    // 2. 현재 마우스 위치 확인
+    const dropX = currentMousePos.x;
+    const dropY = currentMousePos.y;
+    console.log(`📍 드롭 위치: (${dropX}, ${dropY})`);
+
+    if (dropX === 0 && dropY === 0) {
+      console.log('🚫 드롭 실패: 유효하지 않은 마우스 위치');
+      setActiveId(null);
+      setActiveFeature(null);
+      setDragOverRegion(null);
+      return;
+    }
+
+    // 3. 중첩 지역을 고려한 최적 feature 탐지
+    const { regionName: targetRegionName, method: detectionMethod } = findBestMatchingFeature(
+      dropX,
+      dropY,
+      draggedRegionName,
+    );
+
+    console.log(`🎯 최종 탐지 결과: "${targetRegionName}" (${detectionMethod})`);
+
+    // 유효한 드롭존이 아닌 경우 처리
+    if (!targetRegionName) {
       console.log('🚫 드롭 실패: 드롭존 외부 또는 유효하지 않은 feature');
       setActiveId(null);
       setActiveFeature(null);
@@ -268,6 +287,7 @@ export const MapDnD: React.FC<MapDnDProps> = ({ className = 'flex' }) => {
     console.log(`📋 드래그 아이템 지역명: "${draggedRegionName}"`);
     console.log(`🎯 드롭존 feature 지역명: "${targetRegionName}"`);
     console.log(`📍 마우스 포인터 위치: (${dropX}, ${dropY})`);
+    console.log(`🔧 탐지 방법: ${detectionMethod}`);
 
     if (draggedRegionName === targetRegionName) {
       console.log('🎉 드롭 성공! 동일한 지역 매칭 완료');
@@ -280,15 +300,21 @@ export const MapDnD: React.FC<MapDnDProps> = ({ className = 'flex' }) => {
       // 스냅 좌표로 이동 (centroid 기반)
       const snapPoint = regionSnapPoints[targetRegionName];
       if (snapPoint) {
-        setItemPosition(activeId, snapPoint);
+        setItemPosition(activeItemId, snapPoint);
         console.log(`📍 아이템을 centroid 좌표로 이동: (${snapPoint.x}, ${snapPoint.y})`);
       } else {
         console.log(`⚠️ "${targetRegionName}" 지역의 스냅 좌표를 찾을 수 없음`);
       }
 
-      // 시각적 피드백
+      // 시각적 피드백 및 UI 안정성 보장
       setInteractionEnabled(false);
-      setTimeout(() => setInteractionEnabled(true), 500);
+
+      // UI 상태 업데이트를 위한 강제 리렌더링
+      setTimeout(() => {
+        setInteractionEnabled(true);
+        // 추가적인 상태 동기화를 위한 처리
+        console.log(`🔄 UI 상태 동기화 완료: "${draggedRegionName}" 매칭됨`);
+      }, 500);
 
       console.log('🏆 드롭 완료 처리 성공');
     } else {
@@ -296,7 +322,11 @@ export const MapDnD: React.FC<MapDnDProps> = ({ className = 'flex' }) => {
       console.log(`❌ 드롭 실패 상태: 지역명 불일치`);
       console.log(`   - 드래그 아이템: "${draggedRegionName}"`);
       console.log(`   - 드롭존 feature: "${targetRegionName}"`);
+      console.log(`   - 탐지 방법: ${detectionMethod}`);
       console.log(`   - 실패 원인: 지역명이 일치하지 않음`);
+
+      // 중첩 지역에서 다른 후보들도 확인
+      console.log(`   💡 힌트: "${draggedRegionName}" 지역을 찾아 정확한 위치에 드롭하세요`);
     }
 
     console.log('=== GeoJSON 기반 드롭 검증 완료 ===');
