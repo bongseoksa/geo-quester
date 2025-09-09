@@ -1,10 +1,14 @@
 /** @type {import('tailwindcss').Config} */
-import { Config } from 'tailwindcss';
-import tailwindcssAnimate from 'tailwindcss-animate';
+import type { Config } from 'tailwindcss';
 
-export default {
+const config: Config = {
   darkMode: 'class',
-  content: ['./app/**/*.{ts,tsx}', './components/**/*.{ts,tsx}', './pages/**/*.{ts,tsx}', './public/**/*.html'],
+  content: [
+    './app/**/*.{js,ts,jsx,tsx,mdx}',
+    './components/**/*.{js,ts,jsx,tsx,mdx}',
+    './pages/**/*.{js,ts,jsx,tsx,mdx}',
+    './public/**/*.html'
+  ],
   theme: {
     extend: {
       colors: {
@@ -88,5 +92,7 @@ export default {
       }
     }
   },
-  plugins: [tailwindcssAnimate]
-} satisfies Config;
+  plugins: [require('tailwindcss-animate')]
+};
+
+export default config;

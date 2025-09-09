@@ -100,7 +100,7 @@ export const MapDnD: React.FC<MapDnDProps> = ({ className = 'flex' }) => {
     draggedRegionName: string,
   ): { regionName: string | null; method: string } => {
     console.log('🔍 중첩 지역 고려 feature 탐지 시작...');
-    
+
     const candidateRegions: CandidateRegion[] = [];
 
     // 방법 1: 직접 elementFromPoint 탐지
@@ -140,7 +140,8 @@ export const MapDnD: React.FC<MapDnDProps> = ({ className = 'flex' }) => {
         if (!regionFromPath) continue;
 
         // 이미 후보에 있는 지역은 건너뛰기
-        if (candidateRegions.some((c: CandidateRegion) => c.regionName === regionFromPath)) continue;
+        if (candidateRegions.some((c: CandidateRegion) => c.regionName === regionFromPath))
+          continue;
 
         const matchingFeature = features.find(
           (f: GeoJSONFeature) => f.properties?.NAME_1 === regionFromPath,
@@ -149,7 +150,7 @@ export const MapDnD: React.FC<MapDnDProps> = ({ className = 'flex' }) => {
 
         try {
           const bbox = (pathElement as SVGPathElement).getBBox();
-          
+
           // bbox 검사
           if (
             relativeX >= bbox.x &&
@@ -197,7 +198,9 @@ export const MapDnD: React.FC<MapDnDProps> = ({ className = 'flex' }) => {
 
     console.log(`   총 후보 지역 수: ${candidateRegions.length}`);
     candidateRegions.forEach((c: CandidateRegion) => {
-      console.log(`     - "${c.regionName}" (${c.method}, 면적: ${c.area}, 정확매칭: ${c.isExactMatch})`);
+      console.log(
+        `     - "${c.regionName}" (${c.method}, 면적: ${c.area}, 정확매칭: ${c.isExactMatch})`,
+      );
     });
 
     if (candidateRegions.length === 0) {
@@ -221,8 +224,10 @@ export const MapDnD: React.FC<MapDnDProps> = ({ className = 'flex' }) => {
     });
 
     const bestCandidate = sortedByArea[0];
-    console.log(`   🏆 최적 후보 선택: "${bestCandidate.regionName}" (면적: ${bestCandidate.area})`);
-    
+    console.log(
+      `   🏆 최적 후보 선택: "${bestCandidate.regionName}" (면적: ${bestCandidate.area})`,
+    );
+
     return { regionName: bestCandidate.regionName, method: bestCandidate.method + ' (면적기준)' };
   };
 
@@ -424,35 +429,32 @@ export const MapDnD: React.FC<MapDnDProps> = ({ className = 'flex' }) => {
       onDragEnd={handleDragEnd}
       onDragCancel={handleDragCancel}
     >
-      <div className={className}>
-        {/* 지도 DropZone */}
-        <DropZone
-          className="map-wrapper relative"
-          dragOverRegion={dragOverRegion}
-          activeFeature={activeFeature}
-        />
+      <div className="flex h-screen w-full">
+        {/* 지도 DropZone - 좌측 영역 */}
+        <div className="flex-1">
+          <DropZone
+            className="map-wrapper relative h-full w-full"
+            dragOverRegion={dragOverRegion}
+            activeFeature={activeFeature}
+          />
+        </div>
 
-        {/* 퍼즐 아이템 리스트 */}
-        <div
-          className="puzzle-items-wrapper"
-          style={{
-            width: '250px',
-            padding: '10px',
-            borderLeft: '1px solid #ccc',
-            maxHeight: '90vh',
-            overflowY: 'auto',
-          }}
-        >
-          <h3 style={{ marginBottom: '8px' }}>퍼즐조각</h3>
-          {features.map((feature, index) => (
-            <DraggableItem
-              key={`${feature.properties.NAME_1}-${index}`}
-              feature={feature}
-              pathGenerator={pathGenerator}
-              selected={selectedName === feature.properties.NAME_1}
-              onClick={() => setSelectedName(feature.properties.NAME_1)}
-            />
-          ))}
+        {/* 퍼즐 아이템 리스트 - 우측 고정 영역 */}
+        <div className="flex w-80 flex-col border-l border-gray-200 bg-gray-50">
+          <div className="border-b border-gray-200 p-4">
+            <h3 className="text-lg font-semibold text-gray-800">퍼즐조각</h3>
+          </div>
+          <div className="flex-1 space-y-2 overflow-y-auto p-4">
+            {features.map((feature, index) => (
+              <DraggableItem
+                key={`${feature.properties.NAME_1}-${index}`}
+                feature={feature}
+                pathGenerator={pathGenerator}
+                selected={selectedName === feature.properties.NAME_1}
+                onClick={() => setSelectedName(feature.properties.NAME_1)}
+              />
+            ))}
+          </div>
         </div>
       </div>
 
