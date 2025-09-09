@@ -1,9 +1,8 @@
 'use client';
 
-import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
+import { Canvas, useFrame } from '@react-three/fiber';
 import { useRef } from 'react';
-import { useFrame } from '@react-three/fiber';
 import type * as THREE from 'three';
 
 interface SlothModelProps {
@@ -113,10 +112,10 @@ interface Globe3DProps {
 export function Globe3D({
   showSloth = false,
   showAnimation = false,
-  className = ''
+  className = '',
 }: Globe3DProps) {
   return (
-    <div className={`w-full h-full ${className}`}>
+    <div className={`h-full w-full ${className}`}>
       <Canvas
         camera={{ position: [0, 0, 3], fov: 50 }}
         style={{ background: 'transparent' }}
