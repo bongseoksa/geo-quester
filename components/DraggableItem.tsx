@@ -41,7 +41,7 @@ export const DraggableItem: React.FC<DraggableItemProps> = ({
       : position
         ? `translate3d(${position.x}px, ${position.y}px, 0)`
         : undefined,
-    opacity: isMatched ? 0.3 : isDragging ? 0.5 : 1, // 드래그 중에는 반투명하게
+    opacity: isMatched ? 0.3 : isDragging ? 0.5 : 1, // 매칭된 아이템은 30% 투명도
     cursor: isMatched ? 'default' : 'grab',
     transition: isDragging ? 'none' : 'transform 0.2s ease-out',
   };
@@ -77,7 +77,7 @@ export const DraggableItem: React.FC<DraggableItemProps> = ({
           onClick={!isMatched ? onClick : undefined}
           style={{
             cursor: isMatched ? 'default' : 'grab',
-            pointerEvents: 'auto',
+            pointerEvents: isMatched ? 'none' : 'auto', // 매칭된 아이템은 클릭 차단
           }}
         >
           {pathGenerator && feature && (

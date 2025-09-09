@@ -41,6 +41,8 @@ export const DropZone: React.FC<DropZoneProps> = ({
   const pathGenerator = useGeoPath(features, width, height);
   const { setNodeRef } = useDroppable({ id: 'map-drop-zone' });
 
+  // 중앙 집중식 features 사용으로 인해 별도 전달 불필요
+
   // 지역별 스냅 좌표 계산 및 저장
   useEffect(() => {
     if (!features || features.length === 0 || !pathGenerator) return;
