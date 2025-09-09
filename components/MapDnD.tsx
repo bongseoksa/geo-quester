@@ -92,6 +92,8 @@ export const MapDnD: React.FC<MapDnDProps> = ({ className = 'flex' }) => {
     // 드래그 종료 시점의 마우스 좌표 가져오기
     const dropX = event.activatorEvent?.clientX || 0;
     const dropY = event.activatorEvent?.clientY || 0;
+    const deltaX = event.delta?.x || 0;
+    const deltaY = event.delta?.y || 0;
     console.log('Drop coordinates:', dropX, dropY);
 
     // SVG 좌표계로 변환
@@ -105,14 +107,14 @@ export const MapDnD: React.FC<MapDnDProps> = ({ className = 'flex' }) => {
 
     // SVG의 bounding box 가져오기
     const svgRect = svgElement.getBoundingClientRect();
-    const svgX = dropX - svgRect.left;
-    const svgY = dropY - svgRect.top;
+    const svgX = dropX + deltaX - svgRect.left;
+    const svgY = dropY + deltaY - svgRect.top;
 
     console.log('SVG coordinates:', svgX, svgY);
 
     // document.elementFromPoint로 정확한 드롭 위치 찾기
     const elementBelow = document.elementFromPoint(dropX, dropY);
-    console.log('Element below cursor:', elementBelow);
+    console.log('어디 놨니?', elementBelow?.tagName);
 
     let targetRegion = null;
 
@@ -216,8 +218,6 @@ export const MapDnD: React.FC<MapDnDProps> = ({ className = 'flex' }) => {
           if (distance < minDistance && distance < 100) {
             minDistance = distance;
             closestRegion = regionName;
-            if (regionName.toLowerCase() === 'busan')
-              console.log(event, regionName, 'mouseX', distance);
           }
         });
 
@@ -265,16 +265,6 @@ export const MapDnD: React.FC<MapDnDProps> = ({ className = 'flex' }) => {
             strokeWidth={2}
           />
         </svg>
-        <span
-          style={{
-            fontSize: '14px',
-            marginTop: '4px',
-            fontWeight: 'bold',
-            color: '#F53',
-          }}
-        >
-          {activeFeature.properties.NAME_1}
-        </span>
       </div>
     );
   };
